@@ -1,0 +1,25 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Everything belongs to the signed-in owner; nothing is readable by anyone else.
+    match /users/{uid} {
+      allow read, delete: if request.auth != null && request.auth.uid == uid;
+      allow create, update: if request.auth != null && request.auth.uid == uid
+        && request.resource.data.keys().hasOnly(['profile', 'consent', 'updatedAt']);
+
+      match /history/{id} {
+        allow read, delete: if request.auth != null && request.auth.uid == uid;
+        allow create: if request.auth != null && request.auth.uid == uid
+          && request.resource.data.keys().hasOnly(['kind', 'title', 'summary', 'details', 'createdAt'])
+          && request.resource.data.kind in ['skin', 'label', 'routine']
+          && request.resource.data.title is string && request.resource.data.title.size() <= 120
+          && request.resource.data.summary is string && request.resource.data.summary.size() <= 1500
+          && request.resource.data.details is list && request.resource.data.details.size() <= 40;
+        allow update: if false;
+      }
+    }
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
